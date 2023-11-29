@@ -101,11 +101,17 @@ class SgLoginDialog(QtWidgets.QDialog):
         sg_username = self.sg_username_input.text()
         sg_password = self.sg_password_input.text()
 
-        login_result, login_message = credentials.check_user_permissions(
-            self.module.get_sg_url(),
-            sg_username,
-            sg_password,
-        )
+        secret = self.get_shotgrid_secret_data()
+        login_args = {'base_url': self.module.get_sg_url()}
+        if secret:
+            login_args['script_name'] = secret.get('name')
+            login_args['api_key'] = secret.get('value')
+            login_args['sudo_as_login'] = sg_username
+        else:
+            login_args['login'] = sg_username
+            login_args['password'] = sg_password
+
+        login_result, login_message = credentials.check_user_permissions(**login_args)
 
         self.set_local_login()
 
@@ -113,3 +119,21 @@ class SgLoginDialog(QtWidgets.QDialog):
             self.close()
         else:
             self.sg_connection_message.setText(login_message)
+
+    def get_shotgrid_secret_data(self):
+        """Gets shotgrid data from server for login.
+
+        Returns:
+            (dict): script_name under 'name' key and api_key under 'value' key.
+
+        """
+        ayon_server_api = ayon_api.get_server_api_connection()
+
+        shotgrid_script_name = self.module._shotgrid_script_name
+
+        secret = ''
+        try:
+            secret = ayon_server_api.get_secret(shotgrid_script_name)
+            return secret
+        except ayon_api.exceptions.HTTPRequestError:
+            return secret
