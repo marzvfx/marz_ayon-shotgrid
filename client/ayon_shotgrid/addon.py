@@ -18,7 +18,7 @@ class ShotgridAddon(OpenPypeModule, ITrayModule, IPluginPaths):
     def initialize(self, modules_settings):
         module_settings = modules_settings.get(self.name, dict())
         self._shotgrid_server_url = module_settings.get("shotgrid_server")
-        self._shotgrid_script_name = module_settings.get("shotgrid_script_name")
+        self._shotgrid_script_name = module_settings.get("shotgrid_api_secret")
         self._shotgrid_api_key = None
 
     def get_sg_url(self):
