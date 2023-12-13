@@ -1,4 +1,5 @@
 import os
+import ayon_api
 
 from openpype.modules import (
     OpenPypeModule,
@@ -17,7 +18,7 @@ class ShotgridAddon(OpenPypeModule, ITrayModule, IPluginPaths):
     def initialize(self, modules_settings):
         module_settings = modules_settings.get(self.name, dict())
         self._shotgrid_server_url = module_settings.get("shotgrid_server")
-        self._shotgrid_script_name = None
+        self._shotgrid_script_name = module_settings.get("shotgrid_api_secret")
         self._shotgrid_api_key = None
 
     def get_sg_url(self):
@@ -35,14 +36,20 @@ class ShotgridAddon(OpenPypeModule, ITrayModule, IPluginPaths):
 
         sg_username, sg_password = credentials.get_local_login()
 
-        if not sg_username or not sg_password:
+        secret = self.get_shotgrid_secret_data()
+        login_args = {'base_url': self._shotgrid_server_url}
+        if secret:
+            login_args['script_name'] = secret.get('name')
+            login_args['api_key'] = secret.get('value')
+            login_args['sudo_as_login'] = sg_username
+        else:
+            login_args['login'] = sg_username
+            login_args['password'] = sg_password
+
+        if not any(login_args.values()):
             return None
 
-        return credentials.create_sg_session(
-            self._shotgrid_server_url,
-            sg_username,
-            sg_password
-        )
+        return credentials.create_sg_session(**login_args)
 
     def tray_init(self):
         from .tray.shotgrid_tray import ShotgridTrayWrapper
@@ -56,3 +63,19 @@ class ShotgridAddon(OpenPypeModule, ITrayModule, IPluginPaths):
 
     def tray_menu(self, tray_menu):
         return self.tray_wrapper.tray_menu(tray_menu)
+
+    def get_shotgrid_secret_data(self):
+        """Gets shotgrid data from server for login.
+
+        Returns:
+            (dict): script_name under 'name' key and api_key under 'value' key.
+
+        """
+        ayon_server_api = ayon_api.get_server_api_connection()
+
+        secret = ''
+        try:
+            secret = ayon_server_api.get_secret(self._shotgrid_script_name)
+            return secret
+        except ayon_api.exceptions.HTTPRequestError:
+            return secret

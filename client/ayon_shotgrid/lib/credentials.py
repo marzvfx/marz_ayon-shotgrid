@@ -4,28 +4,27 @@ from shotgun_api3.shotgun import AuthenticationFault
 from openpype.lib import OpenPypeSettingsRegistry
 
 
-def check_user_permissions(shotgrid_url, username, password):
+def check_user_permissions(**kwargs):
     """Check if the provided user can access the Shotgrid API.
 
     Args:
-        shotgrid_url (str): The Shotgun server URL.
-        username (str): The Shotgrid login username.
+        base_url (str): The Shotgun server URL.
+        login (str): The Shotgrid login username.
         password (str): The Shotgrid login password.
+        script_name (str): Name of the Shotgrid script name used for login.
+        api_key (str): key related to shotgrid script name.
+        sudo_as_login (str): The Shotgrid login username.
         
     Returns:
         tuple(bool, str): Whether the connection was succsefull or not, and a 
             string message with the result.
      """
-    
-    if not shotgrid_url or not username or not password:
+    if not any(kwargs.values()):
+        print('check_user_permissions: ', kwargs)
         return (False, "Missing a field.")
 
     try:
-        session = create_sg_session(
-            shotgrid_url,
-            username,
-            password
-        )
+        session = create_sg_session(**kwargs)
         session.close()
     except AuthenticationFault as e:
         return (False, str(e))
@@ -39,14 +38,16 @@ def clear_local_login():
     reg.delete_item("shotgrid_login")
 
 
-def create_sg_session(shotgrid_url, username, password):
+def create_sg_session(**kwargs):
     """Attempt to create a Shotgun Session
 
     Args:
-        shotgrid_url (str): The Shotgun server URL.
-        script_name (str): The Shotgrid API script name.
-        api_key (str): The Shotgrid API key.
-        username (str): The Shotgrid username to use the Session as.
+        base_url (str): The Shotgun server URL.
+        login (str): The Shotgrid login username.
+        password (str): The Shotgrid login password.
+        script_name (str): Name of the Shotgrid script name used for login.
+        api_key (str): key related to shotgrid script name.
+        sudo_as_login (str): The Shotgrid login username.
 
     Returns:
         session (shotgun_api3.Shotgun): A Shotgrid API Session.
@@ -55,11 +56,7 @@ def create_sg_session(shotgrid_url, username, password):
         AuthenticationFault: If the authentication with Shotgrid fails.
     """
 
-    session = shotgun_api3.Shotgun(
-        base_url=shotgrid_url,
-        login=username,
-        password=password,
-    )
+    session = shotgun_api3.Shotgun(**kwargs)
 
     session.preferences_read()
 
